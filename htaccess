@@ -14,3 +14,11 @@ RewriteRule . /index.php [L]
 </IfModule>
 
 # END WordPress
+
+#Fix HTTP error when uploading images
+
+SetEnv MAGICK_THREAD_LIMIT 1
+<IfModule mod_security.c>
+  SecFilterEngine Off
+  SecFilterScanPOST Off
+</IfModule>
