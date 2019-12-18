@@ -1,6 +1,6 @@
 #!/bin/bash
 
-SERVER_NAME=wanoko_backup
+SERVER_NAME=BACKUP #Define Directory's name on cloud
 
 TIMESTAMP=$(date +"%F")
 BACKUPTIME=`date +%b-%d-%y`
@@ -18,37 +18,32 @@ SECONDS=0
 
 mkdir -p "$BACKUP_DIR/mysql"
 
+#Dumping all available Database
 echo "Starting Backup Database";
-
-#zip -r $BACKUP_DIR/mysql/database-$TIMESTAMP.zip /var/lib/mysql
-
 databases=`$MYSQL --user=$MYSQL_USER -p$MYSQL_PASSWORD -e "SHOW DATABASES;" | grep -Ev "(Database|information_schema|performance_schema)"`
-
 for db in $databases; do
   $MYSQLDUMP --force --opt --user=$MYSQL_USER -p$MYSQL_PASSWORD --databases $db | gzip > "$BACKUP_DIR/mysql/$db.gz"
 done
-
-
-echo "Finished Compressing Database";
+echo "Finished Backup Database";
 echo '';
 
+#Compressing specific directory
 echo "Starting Backup Website";
-# Loop through /home directory
-#zip -r $BACKUP_DIR/basewakano.zip /home/vpssim.demo/public_html/
-tar -zcvf $BACKUP_DIR/basewanoko.tar.gz /home/vpssim.demo/public_html/
-
+tar -zcvf $BACKUP_DIR/newfile.tar.gz /path/directory
 echo "Finished Compressing Source";
 echo '';
 
+#Copying Nginx Configuration Directory
 echo "Starting Backup Nginx Configuration";
 cp -r /etc/nginx/conf.d/ $BACKUP_DIR/nginx/
 echo "Finished";
 echo '';
 
-size=$(du -sh $BACKUP_DIR | awk '{ print $1}')
+size=$(du -sh $BACKUP_DIR | awk '{ print $1}') #Calculating backup directory size in total
 
+#Uploading backup directory to configured Cloud
+#autobackup = remote config name for rclone
 echo "Starting Uploading Backup";
-
 rclone move $BACKUP_DIR "autobackup:$SERVER_NAME/$TIMESTAMP" >> /var/log/rclone.log 2>&1
 echo "Finished";
 
