@@ -1,0 +1,89 @@
+#!/bin/sh
+
+# Description:
+# This Plugin determines the status of a MPT RAID controller
+# It will call the binary mpt-status with sudo to get the
+# needed root priviledges. Make sure you have configured your
+# suders file:
+# /etc/sudoers:
+#   %nagcmd         MRELAYS = (root) NOPASSWD: /usr/bin/mpt-status -s
+
+# This assumes that there is a group called nagcmd in which the
+# user nagios is included.
+#
+# Output:
+# The script returns a CRIT when the return value of mpt-status
+# is not equal zero
+#
+# Written by: Stefan Jakobs <projects AT localside.net>
+VERSION="20131202-0"
+
+# You may have to change this, depending on where you installed your
+# Nagios plugins
+PATH="/usr/bin:/usr/sbin:/bin:/sbin"
+LIBEXEC="/usr/lib/nagios/plugins"
+. $LIBEXEC/utils.sh
+
+MPT_STATUS='/usr/bin/mpt-status'
+
+print_usage() {
+   echo "Usage: $0"
+   echo "Usage: $0 --help"
+}
+
+print_help() {
+   echo ""
+   print_usage
+   echo ""
+   echo "MPT RAID controller status"
+   echo ""
+   echo ""
+   echo "This plugin is not developped by the Nagios Plugin group."
+   echo "Please do not e-mail them for support on this plugin, since"
+   echo "they won't know what you're talking about :P"
+   echo ""
+   echo "For contact info, read the plugin itself..."
+}
+
+if [ -n "$1" ]; then
+   case "$1" in
+      --help) print_help; exit $STATE_OK;;
+      -h) print_help; exit $STATE_OK;;
+      *) print_usage; exit $STATE_UNKNOWN;;
+   esac
+fi
+
+if [ -x "$MPT_STATUS" ]; then
+   OUTPUT=$(sudo $MPT_STATUS -s)
+   STATUS=$?
+   if   (( $STATUS == 0 )) ; then
+      echo "OK"
+      exitstatus=$STATE_OK
+   elif (( $STATUS == 1 )) ; then
+      echo "CRITICAL - Abnormal condition / unknown error"
+   elif (( 2 <= $STATUS && $STATUS <= 3 )) ; then
+      echo "CRITICAL - A logical volume has failed"
+      exitstatus=$STATE_CRITICAL
+   elif (( 4 <= $STATUS && $STATUS <= 7 )) ; then
+      echo "WARNING - A logical volume is degraded"
+      exitstatus=$STATE_WARNING
+   elif (( 8 <= $STATUS && $STATUS <= 15 )) ; then
+      echo "WARNING - A logical volume is resyncing"
+      exitstatus=$STATE_WARNING
+   elif (( 16 <= $STATUS && $STATUS <= 31 )) ; then
+      echo "CRITICAL - At least one physical disk failed"
+      exitstatus=$STATE_CRITICAL
+   elif (( 32 <= $STATUS && $STATUS <= 63 )) ; then
+      echo "WARNING - At least one physical disk is in warning condition: $OUTPUT"
+      exitstatus=$STATE_WARNING
+   else
+      echo "CRITICAL - unknown return code: $OUTPUT"
+      exitstatus=$STATE_CRITICAL
+   fi
+      echo "$OUTPUT"
+else
+   echo "CRITICAL - can not execute $MPT_STATUS"
+   exitstatus=$STATE_CRITICAL
+fi
+
+exit $exitstatus
